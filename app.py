@@ -15,7 +15,7 @@ def calculation(fc, data_xlsx):
     - filter_2: From filter_1, EXCLUDE rows where '跟进记录' contains '已转仓'
               This means if 跟进记录 has '已转仓LAX9', it WILL be filtered OUT (excluded)
               Only rows WITHOUT '已转仓' in 跟进记录 are kept
-    - filter_3: From filter_2, only rows where '联宇专线' contains specific keywords
+    - filter_3: From filter_2, only rows where '产品渠道' contains specific keywords
     """
     filter_1 = data_xlsx[data_xlsx['收件地址'].str.contains(fc, na=False)]
     
@@ -36,10 +36,10 @@ def calculation(fc, data_xlsx):
     filter_2 = filter_1[~filter_1['跟进记录'].astype(str).str.contains('转仓', na=False)]
     未转仓 = filter_2['预计总体积'].sum() if '预计总体积' in filter_2.columns else 0
     
-    # 未转仓核爆品 = sum where also 联宇专线 contains specific keywords
+    # 未转仓核爆品 = sum where also 产品渠道 contains specific keywords
     keywords = ['ONLY23', 'ONLY18', 'Z快线', '至尊达', '王者鲲运']
     pattern = '|'.join(keywords)
-    filter_3 = filter_2[filter_2['联宇专线'].astype(str).str.contains(pattern, na=False)]
+    filter_3 = filter_2[filter_2['产品渠道'].astype(str).str.contains(pattern, na=False)]
     未转仓核爆品 = filter_3['预计总体积'].sum() if not filter_3.empty else 0
     
     result = {
@@ -125,3 +125,4 @@ def process():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
