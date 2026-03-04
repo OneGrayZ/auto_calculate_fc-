@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每周各仓点安排计算</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 450px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 18px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 12px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+        
+        .input-section {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #555;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+        
+        .file-label:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+        
+        .file-label.has-file {
+            border-color: #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 15px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .results h2 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .copy-btn {
+            background: #28a745;
+            width: 100%;
+            padding: 8px 15px;
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        
+        .copy-btn:hover {
+            background: #218838;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 每周各仓点安排计算</h1>
+        
+        <form id="uploadForm">
+            <div class="input-section">
+                <label for="fcCodes">FC代码 (每行一个):</label>
+                <textarea id="fcCodes" name="fc_codes" required></textarea>
+            </div>
+            
+            <div class="input-section">
+                <label>Excel文件 (.xlsx / .xls):</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" name="file" accept=".xlsx,.xls" required>
+                    <label for="fileInput" class="file-label" id="fileLabel">
+                        📁 点击选择Excel文件
+                    </label>
+                </div>
+            </div>
+            
+            <button type="submit" id="submitBtn">
+                <span id="btnText">开始处理</span>
+                <div class="spinner" id="spinner"></div>
+            </button>
+        </form>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div class="results" id="results">
+            <h2>处理结果</h2>
+            <button class="copy-btn" id="copyBtn">📋 复制数据到Excel</button>
+            <div class="success-message" id="successMessage">已复制到剪贴板！</div>
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>FC</th>
+                        <th>未出单</th>
+                        <th>未转仓</th>
+                        <th>未转仓核爆品</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const form = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+        const spinner = document.getElementById('spinner');
+        const resultsDiv = document.getElementById('results');
+        const resultsBody = document.getElementById('resultsBody');
+        const errorDiv = document.getElementById('error');
+        const copyBtn = document.getElementById('copyBtn');
+        const successMessage = document.getElementById('successMessage');
+        
+        let copyData = [];
+        
+        // File input change event
+        fileInput.addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                fileLabel.textContent = '✅ ' + this.files[0].name;
+                fileLabel.classList.add('has-file');
+            } else {
+                fileLabel.textContent = '📁 点击选择Excel文件';
+                fileLabel.classList.remove('has-file');
+            }
+        });
+        
+        // Form submit event
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Hide previous results/errors
+            resultsDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+            successMessage.style.display = 'none';
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+            
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Display results
+                    console.log('Results:', data.results); // Debug output
+                    resultsBody.innerHTML = '';
+                    data.results.forEach(row => {
+                        console.log('Row data:', row); // Debug each row
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.FC || row['收件地址'] || 'N/A'}</td>
+                            <td>${(row.未出单 || 0).toFixed(2)}</td>
+                            <td>${(row.未转仓 || 0).toFixed(2)}</td>
+                            <td>${(row.未转仓核爆品 || 0).toFixed(2)}</td>
+                        `;
+                        resultsBody.appendChild(tr);
+                    });
+                    
+                    copyData = data.results; // Use results directly
+                    console.log('Copy data set:', copyData); // Debug
+                    resultsDiv.style.display = 'block';
+                } else {
+                    errorDiv.textContent = data.error || '处理失败';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = '网络错误: ' + error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                btnText.style.display = 'block';
+                spinner.style.display = 'none';
+            }
+        });
+        
+        // Copy button event
+        copyBtn.addEventListener('click', async function() {
+            if (copyData.length === 0) {
+                alert('没有数据可复制');
+                return;
+            }
+            
+            // Create tab-separated text for Excel (without headers)
+            let text = '';
+            copyData.forEach(row => {
+                const val1 = (row['未出单'] || 0).toFixed(2);
+                const val2 = (row['未转仓'] || 0).toFixed(2);
+                const val3 = (row['未转仓核爆品'] || 0).toFixed(2);
+                text += `${val1}\t${val2}\t${val3}\n`;
+            });
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                successMessage.style.display = 'block';
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 2000);
+            } catch (err) {
+                console.error('Copy error:', err);
+                alert('复制失败，请手动复制');
+            }
+        });
+    </script>
+</body>
+</html>
