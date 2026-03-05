@@ -247,6 +247,7 @@
                         <th>未出单</th>
                         <th>未转仓</th>
                         <th>未转仓核爆品</th>
+                        <th>已转到该仓</th>
                     </tr>
                 </thead>
                 <tbody id="resultsBody">
@@ -317,6 +318,7 @@
                             <td>${(row.未出单 || 0).toFixed(2)}</td>
                             <td>${(row.未转仓 || 0).toFixed(2)}</td>
                             <td>${(row.未转仓核爆品 || 0).toFixed(2)}</td>
+                            <td>${(row.已转到该仓 || 0).toFixed(2)}</td>
                         `;
                         resultsBody.appendChild(tr);
                     });
@@ -346,13 +348,15 @@
                 return;
             }
             
-            // Create tab-separated text for Excel (without headers)
-            let text = '';
+            // Create tab-separated text for Excel with headers and all columns
+            let text = 'FC\t未出单\t未转仓\t未转仓核爆品\t已转到该仓\n';
             copyData.forEach(row => {
+                const fc = row.FC || row['收件地址'] || 'N/A';
                 const val1 = (row['未出单'] || 0).toFixed(2);
                 const val2 = (row['未转仓'] || 0).toFixed(2);
                 const val3 = (row['未转仓核爆品'] || 0).toFixed(2);
-                text += `${val1}\t${val2}\t${val3}\n`;
+                const val4 = (row['已转到该仓'] || 0).toFixed(2);
+                text += `${fc}\t${val1}\t${val2}\t${val3}\t${val4}\n`;
             });
             
             try {
