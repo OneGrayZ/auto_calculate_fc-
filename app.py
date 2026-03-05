@@ -17,6 +17,7 @@ def calculation(fc, data_xlsx):
               Only rows WITHOUT '已转仓' in 跟进记录 are kept
     - filter_3: From filter_2, only rows where '产品渠道' contains specific keywords
     """
+    fc = fc.upper()  # Ensure FC is uppercase for matching
     filter_1 = data_xlsx[data_xlsx['收件地址'].str.contains(fc, na=False)]
     
     if filter_1.empty:
@@ -41,7 +42,6 @@ def calculation(fc, data_xlsx):
     keywords = ['ONLY23', 'ONLY18', 'Z快线', '至尊达', '王者鲲运']
     pattern = '|'.join(keywords)
     filter_3 = filter_2[filter_2['产品渠道'].astype(str).str.contains(pattern, na=False)]
-    print(filter_3)  
     未转仓核爆品 = filter_3['预计总体积'].sum() if not filter_3.empty else 0
     
     # 已转到该仓 = sum where 跟进记录 contains '转仓' + fc (e.g., '转仓IND9')
