@@ -25,7 +25,8 @@ def calculation(fc, data_xlsx):
             'FC': fc,
             '未出单': 0,
             '未转仓': 0,
-            '未转仓核爆品': 0
+            '未转仓核爆品': 0,
+            '已转到该仓': 0
         }
     
     # 未出单 = sum of 预计总体积 for all rows matching this FC
@@ -40,13 +41,20 @@ def calculation(fc, data_xlsx):
     keywords = ['ONLY23', 'ONLY18', 'Z快线', '至尊达', '王者鲲运']
     pattern = '|'.join(keywords)
     filter_3 = filter_2[filter_2['产品渠道'].astype(str).str.contains(pattern, na=False)]
+    print(filter_3)  
     未转仓核爆品 = filter_3['预计总体积'].sum() if not filter_3.empty else 0
     
+    # 已转到该仓 = sum where 跟进记录 contains '转仓' + fc (e.g., '转仓IND9')
+    change = '转仓' + str(fc)
+    filter_4 = data_xlsx[data_xlsx['跟进记录'].astype(str).str.contains(change, na=False)]
+    已转到该仓 = filter_4['预计总体积'].sum() if not filter_4.empty else 0
+
     result = {
         'FC': str(fc),  # Ensure FC is a string
         '未出单': float(未出单),
         '未转仓': float(未转仓),
-        '未转仓核爆品': float(未转仓核爆品)
+        '未转仓核爆品': float(未转仓核爆品),
+        '已转到该仓': float(已转到该仓)
     }
     print(f"Calculated result for {fc}: {result}")  # Debug
     return result
@@ -110,7 +118,8 @@ def process():
                 'fc': row['FC'],
                 '未出单': row['未出单'],
                 '未转仓': row['未转仓'],
-                '未转仓核爆品': row['未转仓核爆品']
+                '未转仓核爆品': row['未转仓核爆品'],
+                '已转到该仓': row['已转到该仓']
             })
         
         return jsonify({
@@ -125,4 +134,3 @@ def process():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
