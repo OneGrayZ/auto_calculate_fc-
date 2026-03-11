@@ -1,375 +1,147 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>每周各仓点安排计算</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 450px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 18px;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 12px;
-            text-align: center;
-            font-size: 1.2em;
-        }
-        
-        .input-section {
-            margin-bottom: 15px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 6px;
-            color: #555;
-            font-weight: 600;
-            font-size: 0.9em;
-        }
-        
-        textarea {
-            width: 100%;
-            min-height: 80px;
-            padding: 8px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            resize: vertical;
-            transition: border-color 0.3s;
-        }
-        
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-        
-        .file-input-wrapper input[type=file] {
-            position: absolute;
-            left: -9999px;
-        }
-        
-        .file-label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 2px dashed #ddd;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 13px;
-        }
-        
-        .file-label:hover {
-            background: #e9ecef;
-            border-color: #667eea;
-        }
-        
-        .file-label.has-file {
-            border-color: #28a745;
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-top: 15px;
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .spinner {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .results {
-            display: none;
-            margin-top: 20px;
-        }
-        
-        .results h2 {
-            color: #333;
-            margin-bottom: 12px;
-            font-size: 1.1em;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-            font-size: 13px;
-        }
-        
-        th {
-            background: #667eea;
-            color: white;
-            font-weight: 600;
-            font-size: 13px;
-        }
-        
-        tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .copy-btn {
-            background: #28a745;
-            width: 100%;
-            padding: 8px 15px;
-            margin-top: 0;
-            margin-bottom: 12px;
-            font-size: 13px;
-        }
-        
-        .copy-btn:hover {
-            background: #218838;
-        }
-        
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 10px;
-            text-align: center;
-            display: none;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📊 每周各仓点安排计算</h1>
-        
-        <form id="uploadForm">
-            <div class="input-section">
-                <label for="fcCodes">FC代码 (每行一个，留空则显示文件中所有FC):</label>
-                <textarea id="fcCodes" name="fc_codes" placeholder="留空自动显示文件中所有FC"></textarea>
-            </div>
-            
-            <div class="input-section">
-                <label>Excel文件 (.xlsx / .xls):</label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput" name="file" accept=".xlsx,.xls" required>
-                    <label for="fileInput" class="file-label" id="fileLabel">
-                        📁 点击选择Excel文件
-                    </label>
-                </div>
-            </div>
-            
-            <button type="submit" id="submitBtn">
-                <span id="btnText">开始处理</span>
-                <div class="spinner" id="spinner"></div>
-            </button>
-        </form>
-        
-        <div id="error" class="error" style="display: none;"></div>
-        
-        <div class="results" id="results">
-            <h2>处理结果</h2>
-            <button class="copy-btn" id="copyBtn">📋 复制数据到Excel</button>
-            <div class="success-message" id="successMessage">已复制到剪贴板！</div>
-            <table id="resultsTable">
-                <thead>
-                    <tr>
-                        <th>FC</th>
-                        <th>未出单</th>
-                        <th>未转仓</th>
-                        <th>未转仓核爆品</th>
-                        <th>已转到该仓</th>
-                    </tr>
-                </thead>
-                <tbody id="resultsBody">
-                </tbody>
-            </table>
-        </div>
-    </div>
+from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import numpy as np
+import io
+import os
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+def calculation(fc, data_xlsx):
+    """Calculate metrics for a single FC
     
-    <script>
-        const fileInput = document.getElementById('fileInput');
-        const fileLabel = document.getElementById('fileLabel');
-        const form = document.getElementById('uploadForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const btnText = document.getElementById('btnText');
-        const spinner = document.getElementById('spinner');
-        const resultsDiv = document.getElementById('results');
-        const resultsBody = document.getElementById('resultsBody');
-        const errorDiv = document.getElementById('error');
-        const copyBtn = document.getElementById('copyBtn');
-        const successMessage = document.getElementById('successMessage');
+    Filter logic explanation:
+    - filter_1: All rows where '收件地址' contains the FC code (e.g., IND9)
+    - filter_2: From filter_1, EXCLUDE rows where '跟进记录' contains '已转仓'
+              This means if 跟进记录 has '已转仓LAX9', it WILL be filtered OUT (excluded)
+              Only rows WITHOUT '已转仓' in 跟进记录 are kept
+    - filter_3: From filter_2, only rows where '产品渠道' contains specific keywords
+    """
+    fc = fc.upper()  # Ensure FC is uppercase for matching
+    filter_1 = data_xlsx[data_xlsx['收件地址'].str.contains(fc, na=False)]
+    
+    if filter_1.empty:
+        print(f"Warning: No data found for FC: {fc}")  # Debug
+        return {
+            'FC': fc,
+            '未出单': 0,
+            '未转仓': 0,
+            '未转仓核爆品': 0,
+            '已转到该仓': 0
+        }
+    
+    #locate the column name contains '体积' (case-insensitive) and use it for calculations
+    volume_col = None
+    for col in filter_1.columns:
+        if '体积' in col:
+            volume_col = col
+            break
+
+    if volume_col is None:
+        raise ValueError("Excel file must contain a column with '体积' in the name")
+
+    # 未出单 = sum of 预计总体积 for all rows matching this FC
+    未出单 = filter_1[volume_col].sum()
+    
+    # 未转仓 = sum where 跟进记录 does NOT contain '已转仓'
+    # YES, entries like '已转仓LAX9' WILL be filtered out (excluded)
+    filter_2 = filter_1[~filter_1['跟进记录'].astype(str).str.contains('转仓', na=False)]
+    未转仓 = filter_2[volume_col].sum() if volume_col in filter_2.columns else 0
+    
+    # 未转仓核爆品 = sum where also 产品渠道 contains specific keywords
+    keywords = ['ONLY23', 'ONLY18', 'Z快线', '至尊达', '王者鲲运']
+    pattern = '|'.join(keywords)
+    filter_3 = filter_2[filter_2['产品渠道'].astype(str).str.contains(pattern, na=False)]
+    未转仓核爆品 = filter_3[volume_col].sum() if not filter_3.empty else 0
+    
+    # 已转到该仓 = sum where 跟进记录 contains '转仓' + fc (e.g., '转仓IND9')
+    change = '转仓' + str(fc)
+    filter_4 = data_xlsx[data_xlsx['跟进记录'].astype(str).str.contains(change, na=False)]
+    已转到该仓 = filter_4[volume_col].sum() if not filter_4.empty else 0
+
+    result = {
+        'FC': str(fc),  # Ensure FC is a string
+        '未出单': float(未出单),
+        '未转仓': float(未转仓),
+        '未转仓核爆品': float(未转仓核爆品),
+        '已转到该仓': float(已转到该仓)
+    }
+    print(f"Calculated result for {fc}: {result}")  # Debug
+    return result
+
+def process_data(fc_list, xlsx_file):
+    """Process all FCs and return combined results"""
+    # Read the Excel file
+    df = pd.read_excel(xlsx_file)
+    
+    # Check if FC column exists
+    if '收件地址' not in df.columns:
+        raise ValueError("Excel file must contain a '收件地址' column")
+    
+    # If no FC list provided, auto-detect all unique FCs from the file
+    if not fc_list:
+        fc_list = [str(v).strip() for v in df['收件地址'].dropna().unique() if str(v).strip()]
+    
+    # Calculate for each FC
+    results = []
+    for fc in fc_list:
+        fc = fc.strip()
+        if fc:  # Skip empty lines
+            result = calculation(fc, df)
+            results.append(result)
+    
+    # Create output DataFrame
+    output_df = pd.DataFrame(results)
+    return output_df
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/process', methods=['POST'])
+def process():
+    try:
+        # Get FC codes from text input
+        fc_text = request.form.get('fc_codes', '')
+        fc_list = [line.strip() for line in fc_text.split('\n') if line.strip()]
         
-        let copyData = [];
+        # Get uploaded file
+        if 'file' not in request.files:
+            return jsonify({'error': '请上传Excel文件'}), 400
         
-        // File input change event
-        fileInput.addEventListener('change', function(e) {
-            if (this.files.length > 0) {
-                fileLabel.textContent = '✅ ' + this.files[0].name;
-                fileLabel.classList.add('has-file');
-            } else {
-                fileLabel.textContent = '📁 点击选择Excel文件';
-                fileLabel.classList.remove('has-file');
-            }
-        });
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': '未选择文件'}), 400
         
-        // Form submit event
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // Hide previous results/errors
-            resultsDiv.style.display = 'none';
-            errorDiv.style.display = 'none';
-            successMessage.style.display = 'none';
-            
-            // Show loading state
-            submitBtn.disabled = true;
-            btnText.style.display = 'none';
-            spinner.style.display = 'block';
-            
-            const formData = new FormData(form);
-            
-            try {
-                const response = await fetch('/process', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Display results
-                    console.log('Results:', data.results); // Debug output
-                    resultsBody.innerHTML = '';
-                    data.results.forEach(row => {
-                        console.log('Row data:', row); // Debug each row
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${row.FC || row['收件地址'] || 'N/A'}</td>
-                            <td>${(row.未出单 || 0).toFixed(2)}</td>
-                            <td>${(row.未转仓 || 0).toFixed(2)}</td>
-                            <td>${(row.未转仓核爆品 || 0).toFixed(2)}</td>
-                            <td>${(row.已转到该仓 || 0).toFixed(2)}</td>
-                        `;
-                        resultsBody.appendChild(tr);
-                    });
-                    
-                    copyData = data.results; // Use results directly
-                    console.log('Copy data set:', copyData); // Debug
-                    resultsDiv.style.display = 'block';
-                } else {
-                    errorDiv.textContent = data.error || '处理失败';
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                errorDiv.textContent = '网络错误: ' + error.message;
-                errorDiv.style.display = 'block';
-            } finally {
-                // Reset button state
-                submitBtn.disabled = false;
-                btnText.style.display = 'block';
-                spinner.style.display = 'none';
-            }
-        });
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({'error': '文件必须是Excel格式 (.xlsx 或 .xls)'}), 400
         
-        // Copy button event
-        copyBtn.addEventListener('click', async function() {
-            if (copyData.length === 0) {
-                alert('没有数据可复制');
-                return;
-            }
-            
-            // Create tab-separated text for Excel with headers and all columns
-            let text = 'FC\t未出单\t未转仓\t未转仓核爆品\t已转到该仓\n';
-            copyData.forEach(row => {
-                const fc = row.FC || row['收件地址'] || 'N/A';
-                const val1 = (row['未出单'] || 0).toFixed(2);
-                const val2 = (row['未转仓'] || 0).toFixed(2);
-                const val3 = (row['未转仓核爆品'] || 0).toFixed(2);
-                const val4 = (row['已转到该仓'] || 0).toFixed(2);
-                text += `${fc}\t${val1}\t${val2}\t${val3}\t${val4}\n`;
-            });
-            
-            try {
-                await navigator.clipboard.writeText(text);
-                successMessage.style.display = 'block';
-                setTimeout(() => {
-                    successMessage.style.display = 'none';
-                }, 2000);
-            } catch (err) {
-                console.error('Copy error:', err);
-                alert('复制失败，请手动复制');
-            }
-        });
-    </script>
-</body>
-</html>
+        # Process the data
+        result_df = process_data(fc_list, file)
+        
+        # Convert to list of dictionaries for JSON response
+        results = result_df.to_dict('records')
+        
+        # Also prepare copy-friendly format (tab-separated for Excel paste)
+        copy_data = []
+        for row in results:
+            copy_data.append({
+                'fc': row['FC'],
+                '未出单': row['未出单'],
+                '未转仓': row['未转仓'],
+                '未转仓核爆品': row['未转仓核爆品'],
+                '已转到该仓': row['已转到该仓']
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'copy_data': copy_data
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'处理错误: {str(e)}'}), 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
