@@ -188,6 +188,15 @@
             background: #218838;
         }
         
+        #exportBtn {
+            background: #007bff;
+            margin-bottom: 12px;
+        }
+        
+        #exportBtn:hover {
+            background: #0056b3;
+        }
+        
         .error {
             background: #f8d7da;
             color: #721c24;
@@ -214,8 +223,8 @@
         
         <form id="uploadForm">
             <div class="input-section">
-                <label for="fcCodes">FC代码 (每行一个):</label>
-                <textarea id="fcCodes" name="fc_codes" required></textarea>
+                <label for="fcCodes">FC代码 (每行一个，留空则显示文件中所有FC):</label>
+                <textarea id="fcCodes" name="fc_codes" placeholder="留空自动显示文件中所有FC"></textarea>
             </div>
             
             <div class="input-section">
@@ -238,6 +247,7 @@
         
         <div class="results" id="results">
             <h2>处理结果</h2>
+            <button class="copy-btn" id="exportBtn">💾 导出Excel</button>
             <button class="copy-btn" id="copyBtn">📋 复制数据到Excel</button>
             <div class="success-message" id="successMessage">已复制到剪贴板！</div>
             <table id="resultsTable">
@@ -248,6 +258,7 @@
                         <th>未转仓</th>
                         <th>未转仓核爆品</th>
                         <th>已转到该仓</th>
+                        <th>总货量</th>
                     </tr>
                 </thead>
                 <tbody id="resultsBody">
@@ -267,6 +278,7 @@
         const resultsBody = document.getElementById('resultsBody');
         const errorDiv = document.getElementById('error');
         const copyBtn = document.getElementById('copyBtn');
+        const exportBtn = document.getElementById('exportBtn');
         const successMessage = document.getElementById('successMessage');
         
         let copyData = [];
@@ -319,6 +331,7 @@
                             <td>${(row.未转仓 || 0).toFixed(2)}</td>
                             <td>${(row.未转仓核爆品 || 0).toFixed(2)}</td>
                             <td>${(row.已转到该仓 || 0).toFixed(2)}</td>
+                            <td>${(row.总货量 || 0).toFixed(2)}</td>
                         `;
                         resultsBody.appendChild(tr);
                     });
@@ -349,14 +362,15 @@
             }
             
             // Create tab-separated text for Excel with headers and all columns
-            let text = 'FC\t未出单\t未转仓\t未转仓核爆品\t已转到该仓\n';
+            let text = 'FC\t未出单\t未转仓\t未转仓核爆品\t已转到该仓\t总货量\n';
             copyData.forEach(row => {
                 const fc = row.FC || row['收件地址'] || 'N/A';
                 const val1 = (row['未出单'] || 0).toFixed(2);
                 const val2 = (row['未转仓'] || 0).toFixed(2);
                 const val3 = (row['未转仓核爆品'] || 0).toFixed(2);
                 const val4 = (row['已转到该仓'] || 0).toFixed(2);
-                text += `${fc}\t${val1}\t${val2}\t${val3}\t${val4}\n`;
+                const val5 = (row['总货量'] || 0).toFixed(2);
+                text += `${fc}\t${val1}\t${val2}\t${val3}\t${val4}\t${val5}\n`;
             });
             
             try {
@@ -368,6 +382,61 @@
             } catch (err) {
                 console.error('Copy error:', err);
                 alert('复制失败，请手动复制');
+            }
+        });
+        
+        // Export button event
+        exportBtn.addEventListener('click', async function() {
+            if (copyData.length === 0) {
+                alert('没有数据可导出');
+                return;
+            }
+            
+            exportBtn.disabled = true;
+            exportBtn.textContent = '导出中...';
+            
+            try {
+                const formData = new FormData(form);
+                const response = await fetch('/export', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '导出失败');
+                }
+                
+                // Get filename from response header or use default
+                const contentDisposition = response.headers.get('content-disposition');
+                let filename = 'FC计算结果.xlsx';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename=(.+)/);
+                    if (match) filename = decodeURIComponent(match[1]);
+                }
+                
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                successMessage.textContent = '导出成功！';
+                successMessage.style.display = 'block';
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 2000);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('导出失败: ' + error.message);
+            } finally {
+                exportBtn.disabled = false;
+                exportBtn.textContent = '💾 导出Excel';
             }
         });
     </script>
