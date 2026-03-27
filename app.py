@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file, make_response
 import pandas as pd
 import numpy as np
 import io
 import os
 import re
+from datetime import datetime
+from urllib.parse import quote
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -180,11 +182,15 @@ def export():
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             result_df.to_excel(writer, index=False, sheet_name='计算结果')
         
+        # Generate filename with current date and time
+        now = datetime.now()
+        filename = f"FC货量情况_{now.strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
+        
         output.seek(0)
-        return output.getvalue(), 200, {
-            'Content-Disposition': 'attachment; filename=FC计算结果.xlsx',
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        }
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+        return response
         
     except Exception as e:
         return jsonify({'error': f'导出错误: {str(e)}'}), 500
