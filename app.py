@@ -3,9 +3,22 @@ import pandas as pd
 import numpy as np
 import io
 import os
+import re
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+
+def extract_fc_codes_from_addresses(series):
+    """Extract FC-like codes (e.g. IND9, LAX9) from address text."""
+    pattern = re.compile(r'[A-Z]{2,5}\d{1,3}')
+    found = set()
+
+    for value in series.dropna().astype(str):
+        for match in pattern.findall(value.upper()):
+            found.add(match)
+
+    return sorted(found)
 
 def calculation(fc, data_xlsx):
     """Calculate metrics for a single FC
@@ -27,7 +40,8 @@ def calculation(fc, data_xlsx):
             '未出单': 0,
             '未转仓': 0,
             '未转仓核爆品': 0,
-            '已转到该仓': 0
+            '已转到该仓': 0,
+            '总货量': 0
         }
     
     #locate the column name contains '体积' (case-insensitive) and use it for calculations
@@ -59,12 +73,16 @@ def calculation(fc, data_xlsx):
     filter_4 = data_xlsx[data_xlsx['跟进记录'].astype(str).str.contains(change, na=False)]
     已转到该仓 = filter_4[volume_col].sum() if not filter_4.empty else 0
 
+    # 总货量 = 未转仓 + 已转到该仓
+    总货量 = float(未转仓) + float(已转到该仓)
+    
     result = {
         'FC': str(fc),  # Ensure FC is a string
         '未出单': float(未出单),
         '未转仓': float(未转仓),
         '未转仓核爆品': float(未转仓核爆品),
-        '已转到该仓': float(已转到该仓)
+        '已转到该仓': float(已转到该仓),
+        '总货量': 总货量
     }
     print(f"Calculated result for {fc}: {result}")  # Debug
     return result
@@ -78,9 +96,11 @@ def process_data(fc_list, xlsx_file):
     if '收件地址' not in df.columns:
         raise ValueError("Excel file must contain a '收件地址' column")
     
-    # If no FC list provided, auto-detect all unique FCs from the file
+    # If no FC list provided, auto-detect FC codes from address text
     if not fc_list:
-        fc_list = [str(v).strip() for v in df['收件地址'].dropna().unique() if str(v).strip()]
+        fc_list = extract_fc_codes_from_addresses(df['收件地址'])
+        if not fc_list:
+            raise ValueError("未能从'收件地址'自动识别FC代码，请在文本框中手动输入FC（每行一个）")
     
     # Calculate for each FC
     results = []
@@ -92,6 +112,10 @@ def process_data(fc_list, xlsx_file):
     
     # Create output DataFrame
     output_df = pd.DataFrame(results)
+    
+    # Sort by 总货量 in descending order
+    output_df = output_df.sort_values(by='总货量', ascending=False).reset_index(drop=True)
+    
     return output_df
 
 @app.route('/')
@@ -122,25 +146,48 @@ def process():
         # Convert to list of dictionaries for JSON response
         results = result_df.to_dict('records')
         
-        # Also prepare copy-friendly format (tab-separated for Excel paste)
-        copy_data = []
-        for row in results:
-            copy_data.append({
-                'fc': row['FC'],
-                '未出单': row['未出单'],
-                '未转仓': row['未转仓'],
-                '未转仓核爆品': row['未转仓核爆品'],
-                '已转到该仓': row['已转到该仓']
-            })
-        
         return jsonify({
             'success': True,
-            'results': results,
-            'copy_data': copy_data
+            'results': results
         })
         
     except Exception as e:
         return jsonify({'error': f'处理错误: {str(e)}'}), 500
+
+@app.route('/export', methods=['POST'])
+def export():
+    try:
+        # Get FC codes from text input
+        fc_text = request.form.get('fc_codes', '')
+        fc_list = [line.strip() for line in fc_text.split('\n') if line.strip()]
+        
+        # Get uploaded file
+        if 'file' not in request.files:
+            return jsonify({'error': '请上传Excel文件'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': '未选择文件'}), 400
+        
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({'error': '文件必须是Excel格式 (.xlsx 或 .xls)'}), 400
+        
+        # Process the data
+        result_df = process_data(fc_list, file)
+        
+        # Create output Excel file in memory
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            result_df.to_excel(writer, index=False, sheet_name='计算结果')
+        
+        output.seek(0)
+        return output.getvalue(), 200, {
+            'Content-Disposition': 'attachment; filename=FC计算结果.xlsx',
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+        
+    except Exception as e:
+        return jsonify({'error': f'导出错误: {str(e)}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
