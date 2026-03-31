@@ -98,8 +98,12 @@ def process_data(fc_list, xlsx_file):
     if '收件地址' not in df.columns:
         raise ValueError("Excel file must contain a '收件地址' column")
     
+    # Keep user input order when FCs are provided manually.
+    # Only auto-detected FCs will be sorted by 总货量 at the end.
+    has_manual_input = bool(fc_list)
+
     # If no FC list provided, auto-detect FC codes from address text
-    if not fc_list:
+    if not has_manual_input:
         fc_list = extract_fc_codes_from_addresses(df['收件地址'])
         if not fc_list:
             raise ValueError("未能从'收件地址'自动识别FC代码，请在文本框中手动输入FC（每行一个）")
@@ -114,9 +118,10 @@ def process_data(fc_list, xlsx_file):
     
     # Create output DataFrame
     output_df = pd.DataFrame(results)
-    
-    # Sort by 总货量 in descending order
-    output_df = output_df.sort_values(by='总货量', ascending=False).reset_index(drop=True)
+
+    # Sort only when FC list is auto-detected (no manual input).
+    if not has_manual_input:
+        output_df = output_df.sort_values(by='总货量', ascending=False).reset_index(drop=True)
     
     return output_df
 
